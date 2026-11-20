@@ -1,0 +1,55 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Cairo", ui-sans-serif, system-ui, sans-serif;
+  --color-primary: #D4AF37;
+  --color-bg-dark: #0F1113;
+  --color-card-bg: #1A1D21;
+  --color-text-light: #E0E0E0;
+  --color-text-muted: #8E9299;
+  --color-accent: #FF5252;
+  --color-border-color: #2C3136;
+}
+
+body {
+  font-family: "Cairo", sans-serif;
+  background-color: var(--color-bg-dark);
+  color: var(--color-text-light);
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-receipt, .print-receipt * {
+    visibility: visible;
+  }
+  .print-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    margin: 0;
+    padding: 0;
+    background-color: white !important;
+    color: black !important;
+  }
+
+  .print-menu, .print-menu * {
+    visibility: visible;
+  }
+  .print-menu {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+}

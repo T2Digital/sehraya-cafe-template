@@ -1,0 +1,152 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a user in the system (admin, cashier, captain, customer).",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The unique user ID from Firebase Auth." },
+        "name": { "type": "string", "description": "The user's display name." },
+        "email": { "type": "string", "format": "email", "description": "The user's email address." },
+        "role": { "type": "string", "enum": ["admin", "cashier", "captain", "customer"], "description": "The role of the user." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the user was created." }
+      },
+      "required": ["uid", "name", "email", "role", "createdAt"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "A menu category.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "The name of the category." },
+        "order": { "type": "number", "description": "The display order." }
+      },
+      "required": ["name", "order"]
+    },
+    "MenuItem": {
+      "title": "MenuItem",
+      "description": "An item on the menu.",
+      "type": "object",
+      "properties": {
+        "categoryId": { "type": "string", "description": "The ID of the category this item belongs to." },
+        "name": { "type": "string", "description": "The name of the item." },
+        "description": { "type": "string", "description": "A description of the item." },
+        "price": { "type": "number", "description": "The price of the item." },
+        "imageUrl": { "type": "string", "description": "URL of the item's image." },
+        "isAvailable": { "type": "boolean", "description": "Whether the item is currently available." }
+      },
+      "required": ["categoryId", "name", "price", "isAvailable"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "A customer or captain order.",
+      "type": "object",
+      "properties": {
+        "tableNumber": { "type": "string", "description": "The table number (mandatory)." },
+        "customerName": { "type": "string", "description": "Optional customer name." },
+        "customerMobile": { "type": "string", "description": "Optional customer mobile." },
+        "items": { 
+          "type": "array", 
+          "description": "The items in the order.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "menuItemId": { "type": "string" },
+              "name": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" },
+              "note": { "type": "string" }
+            },
+            "required": ["menuItemId", "name", "quantity", "price"]
+          }
+        },
+        "status": { 
+          "type": "string", 
+          "enum": ["pending", "confirmed", "preparing", "ready", "served", "completed", "cancelled"], 
+          "description": "The status of the order." 
+        },
+        "totalAmount": { "type": "number", "description": "The total amount of the order." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the order was placed." },
+        "confirmedAt": { "type": "string", "format": "date-time", "description": "When the captain confirmed the order." },
+        "createdBy": { "type": "string", "description": "The UID of the user who created the order (or 'anonymous')." },
+        "type": { "type": "string", "enum": ["customer", "captain"], "description": "Who placed the order." }
+      },
+      "required": ["tableNumber", "items", "status", "totalAmount", "createdAt", "createdBy", "type"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "A payment recorded for a table.",
+      "type": "object",
+      "properties": {
+        "tableNumber": { "type": "string", "description": "The table number." },
+        "amount": { "type": "number", "description": "The amount paid." },
+        "method": { "type": "string", "enum": ["cash", "mobile_wallet", "instapay"], "description": "Payment method." },
+        "walletProvider": { "type": "string", "enum": ["vodafone", "orange", "etisalat", "we", "instapay"], "description": "Mobile wallet provider." },
+        "proofImageUrl": { "type": "string", "description": "URL of the payment proof screenshot." },
+        "status": { "type": "string", "enum": ["pending", "verified", "rejected"], "description": "Verification status." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When payment was made." },
+        "createdBy": { "type": "string", "description": "The UID who made the payment." },
+        "verifiedBy": { "type": "string", "description": "The UID of the cashier who verified it." },
+        "note": { "type": "string", "description": "Any additional note." }
+      },
+      "required": ["tableNumber", "amount", "method", "status", "createdAt", "createdBy"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Application settings.",
+      "type": "object",
+      "properties": {
+        "walletNumber": { "type": "string" },
+        "instapayNumber": { "type": "string" },
+        "instapayLink": { "type": "string" }
+      }
+    },
+    "Shift": {
+      "title": "Shift",
+      "description": "A work shift.",
+      "type": "object",
+      "properties": {
+        "startTime": { "type": "string", "format": "date-time" },
+        "endTime": { "type": "string", "format": "date-time" },
+        "startedBy": { "type": "string" },
+        "endedBy": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "closed"] },
+        "cashCollected": { "type": "number" },
+        "expectedCash": { "type": "number" },
+        "totalSales": { "type": "number" },
+        "ordersCount": { "type": "number" }
+      },
+      "required": ["startTime", "startedBy", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profiles and roles."
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Stores menu categories."
+    },
+    "/menuItems/{menuItemId}": {
+      "schema": { "$ref": "#/entities/MenuItem" },
+      "description": "Stores menu items."
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Stores orders."
+    },
+    "/payments/{paymentId}": {
+      "schema": { "$ref": "#/entities/Payment" },
+      "description": "Stores payment records."
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/Settings" },
+      "description": "Stores configuration settings."
+    },
+    "/shifts/{shiftId}": {
+      "schema": { "$ref": "#/entities/Shift" },
+      "description": "Stores shift records."
+    }
+  }
+}
