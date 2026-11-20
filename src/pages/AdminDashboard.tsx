@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
-import { LogOut, Settings, Users, BarChart3, Printer, Plus, Edit, Trash2, UserPlus, TrendingUp, Clock, CheckCircle2, Package, ArrowDownCircle, ArrowUpCircle, ArrowUp, ArrowDown, GripVertical, Sparkles, Wand2, ChefHat, ClipboardList, Home, Wallet, Calculator } from 'lucide-react';
-import { doc, updateDoc, deleteDoc, addDoc, collection, setDoc, writeBatch } from 'firebase/firestore';
+import { LogOut, Settings, Users, BarChart3, Printer, Plus, Edit, Trash2, UserPlus, TrendingUp, Clock, CheckCircle2, Package, ArrowDownCircle, ArrowUpCircle, ArrowUp, ArrowDown, GripVertical, Sparkles, Wand2, ChefHat, ClipboardList, Home, Wallet, Calculator, QrCode } from 'lucide-react';
+import { updateDoc, deleteDoc, addDoc, setDoc, writeBatch } from 'firebase/firestore';
 import { db, logout, secondaryAuth } from '../firebase';
+import { tenantCollection as collection, tenantDoc as doc } from '../tenantBootstrap';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { SeedData } from '../SeedData';
 import { getBusinessInsights, generateMenuItemImage } from '../services/geminiService';
@@ -393,16 +394,29 @@ export function AdminDashboard() {
     walletNumber: settings?.walletNumber || '',
     instapayNumber: settings?.instapayNumber || '',
     instapayLink: settings?.instapayLink || '',
+    cafeName: settings?.cafeName || ((typeof window !== 'undefined' && (window as any).__TENANT_BRAND__?.name) as string) || 'كافيه سهرايا',
+    commercialRegister: settings?.commercialRegister || '',
+    taxCardNumber: settings?.taxCardNumber || '',
+    serviceChargePct: Number(settings?.serviceChargePct ?? 0),
+    vatPct: Number(settings?.vatPct ?? 0),
+    tablesCount: Number(settings?.tablesCount ?? 15),
   });
 
   // Sync settings when loaded
   React.useEffect(() => {
     if (settings) {
-      setSettingsForm({
+      setSettingsForm(prev => ({
+        ...prev,
         walletNumber: settings.walletNumber || '',
         instapayNumber: settings.instapayNumber || '',
         instapayLink: settings.instapayLink || '',
-      });
+        cafeName: settings.cafeName || prev.cafeName,
+        commercialRegister: settings.commercialRegister || '',
+        taxCardNumber: settings.taxCardNumber || '',
+        serviceChargePct: Number(settings.serviceChargePct ?? 0),
+        vatPct: Number(settings.vatPct ?? 0),
+        tablesCount: Number(settings.tablesCount ?? 15),
+      }));
     }
   }, [settings]);
 
@@ -545,6 +559,9 @@ export function AdminDashboard() {
           </button>
           <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'settings' ? 'bg-primary text-bg-dark' : 'text-text-muted hover:bg-border-color hover:text-text-light'}`}>
             <Settings size={20} /> الإعدادات
+          </button>
+          <button onClick={() => setActiveTab('qr_tables')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'qr_tables' ? 'bg-primary text-bg-dark' : 'text-text-muted hover:bg-border-color hover:text-text-light'}`}>
+            <QrCode size={20} /> باركود الطاولات (QR)
           </button>
           <button onClick={() => navigate('/print')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:bg-border-color hover:text-text-light transition-colors">
             <Printer size={20} /> طباعة المنيو
@@ -725,18 +742,129 @@ export function AdminDashboard() {
           </div>
         )}
 
+        {activeTab === 'qr_tables' && (
+          <div>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+              <div>
+                <h2 className="text-2xl font-bold text-text-light flex items-center gap-2">
+                  <QrCode className="text-primary" size={26} />
+                  <span>مولّد وطباعة باركود الطاولات (QR Tables)</span>
+                </h2>
+                <p className="text-sm text-text-muted mt-1">اطبع هذه البطاقات وضعها على كل طاولة ليطلب العميل مباشرة من الموبايل</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="text-sm text-text-muted">عدد الطاولات:</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={settingsForm.tablesCount || 15}
+                  onChange={e => setSettingsForm(p => ({ ...p, tablesCount: Math.max(1, Math.min(100, Number(e.target.value) || 1)) }))}
+                  className="w-20 bg-bg-dark border border-border-color rounded-lg px-3 py-2 text-text-light text-center font-bold"
+                />
+                <button
+                  onClick={() => window.print()}
+                  className="px-5 py-2.5 bg-primary text-bg-dark rounded-xl font-bold hover:bg-[#E5C158] transition-colors flex items-center gap-2"
+                >
+                  <Printer size={18} /> طباعة الكل
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {Array.from({ length: Number(settingsForm.tablesCount || 15) }, (_, idx) => {
+                const tableNum = idx + 1;
+                const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                const tableUrl = `${origin}/table/${tableNum}`;
+                const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(tableUrl)}`;
+                return (
+                  <div key={tableNum} className="bg-white text-slate-900 p-5 rounded-2xl border-2 border-amber-400 text-center shadow-md flex flex-col items-center">
+                    <div className="text-xs font-extrabold text-amber-700 uppercase tracking-wider mb-1">{settingsForm.cafeName || 'كافيه سهرايا'}</div>
+                    <div className="text-lg font-black text-slate-900 mb-3">طاولة رقم #{tableNum}</div>
+                    <img src={qrSrc} alt={`QR طاولة ${tableNum}`} className="w-40 h-40 rounded-xl border border-slate-200 p-1 bg-white mb-3" />
+                    <p className="text-xs font-bold text-slate-600">امسح الكود بكاميرا الموبايل لتصفح المنيو والطلب فوراً</p>
+                    <a href={tableUrl} target="_blank" rel="noreferrer" className="text-[11px] text-amber-700 font-mono mt-1 underline" dir="ltr">/table/{tableNum}</a>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {activeTab === 'settings' && (
           <div>
-            <h2 className="text-2xl font-bold text-text-light mb-8">الإعدادات العـامة</h2>
+            <h2 className="text-2xl font-bold text-text-light mb-8">الإعدادات العـامة والفاتورة</h2>
 
             <div className="bg-card-bg p-6 rounded-2xl shadow-sm border border-border-color mb-8">
               <h3 className="text-xl font-bold text-text-light mb-6 flex items-center gap-2">
                 <Wallet className="text-primary" size={24} />
-                إعدادات الدفع الإلكتروني
+                إعدادات الكافيه والضرائب والدفع الإلكتروني
               </h3>
               
               <form onSubmit={handleSaveSettings} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-text-light mb-2">اسم الكافيه (يظهر في الإيصال وبطاقات QR)</label>
+                    <input
+                      type="text"
+                      value={settingsForm.cafeName}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, cafeName: e.target.value })}
+                      className="w-full bg-bg-dark border border-border-color rounded-lg px-4 py-2 text-text-light focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-text-light mb-2">عدد الطاولات الافتراضي</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={settingsForm.tablesCount}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, tablesCount: Number(e.target.value) })}
+                      className="w-full bg-bg-dark border border-border-color rounded-lg px-4 py-2 text-text-light focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-text-light mb-2">رقم السجل التجاري (لشيك الكاشير)</label>
+                    <input
+                      type="text"
+                      value={settingsForm.commercialRegister}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, commercialRegister: e.target.value })}
+                      className="w-full bg-bg-dark border border-border-color rounded-lg px-4 py-2 text-text-light font-mono focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-text-light mb-2">رقم البطاقة الضريبية (لشيك الكاشير)</label>
+                    <input
+                      type="text"
+                      value={settingsForm.taxCardNumber}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, taxCardNumber: e.target.value })}
+                      className="w-full bg-bg-dark border border-border-color rounded-lg px-4 py-2 text-text-light font-mono focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-text-light mb-2">نسبة خدمة الصالة (%)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={25}
+                      step="0.5"
+                      value={settingsForm.serviceChargePct}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, serviceChargePct: Number(e.target.value) })}
+                      className="w-full bg-bg-dark border border-border-color rounded-lg px-4 py-2 text-text-light focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-text-light mb-2">نسبة الضريبة VAT (%)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={25}
+                      step="0.5"
+                      value={settingsForm.vatPct}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, vatPct: Number(e.target.value) })}
+                      className="w-full bg-bg-dark border border-border-color rounded-lg px-4 py-2 text-text-light focus:outline-none focus:border-primary"
+                    />
+                  </div>
                   <div>
                     <label className="block text-text-light mb-2">رقم الاستلام (محافظ كاش)</label>
                     <input

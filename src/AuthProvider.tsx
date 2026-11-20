@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, onSnapshot, query, orderBy, where } from 'firebase/firestore';
+import { doc as fsDoc, getDoc, setDoc, collection as fsCollection, onSnapshot, query, orderBy, where } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from './firebase';
 import { useStore } from './store';
+import { tenantCollection as collection, tenantDoc as doc } from './tenantBootstrap';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, setAuthReady, setCategories, setMenuItems, setOrders, setUsers, user, isAuthReady } = useStore();

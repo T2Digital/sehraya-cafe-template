@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store';
 import { LogOut, CheckCircle, Clock, XCircle, Printer, Wallet, Check, X, ExternalLink, Smartphone, Banknote, CreditCard, ArrowRight, Grid3X3, Coffee } from 'lucide-react';
-import { doc, updateDoc, addDoc, collection } from 'firebase/firestore';
+import { updateDoc, addDoc } from 'firebase/firestore';
 import { db, logout } from '../firebase';
+import { tenantCollection as collection, tenantDoc as doc } from '../tenantBootstrap';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,7 +12,10 @@ import toast from 'react-hot-toast';
 
 export function CashierDashboard() {
   const navigate = useNavigate();
-  const { orders, payments, user } = useStore();
+  const { orders, payments, user, settings } = useStore();
+  const cafeDisplayName = settings?.cafeName || ((typeof window !== 'undefined' && (window as any).__TENANT_BRAND__?.name) as string) || 'كافيه سهرايا';
+  const serviceChargePct = Number(settings?.serviceChargePct || 0);
+  const vatPct = Number(settings?.vatPct || 0);
   const [printingOrder, setPrintingOrder] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'tables' | 'orders' | 'payments'>('tables');
   const [selectedProof, setSelectedProof] = useState<string | null>(null);
@@ -791,10 +795,17 @@ export function CashierDashboard() {
       `}</style>
       <div className="hidden print:block print-receipt">
         <div ref={printRef} className="w-full text-black bg-white font-sans" dir="rtl">
-          {printingOrder && (
+          {printingOrder && (() => {
+            const sub = Number(printingOrder.totalAmount || 0);
+            const srvFee = Math.round(sub * (serviceChargePct / 100));
+            const vatFee = Math.round(sub * (vatPct / 100));
+            const grandTotal = sub + srvFee + vatFee;
+            return (
             <div className="flex flex-col text-sm">
               <div className="text-center mb-4 border-b border-dashed border-gray-400 pb-2">
-                <h2 className="text-2xl font-black mb-1">كافيه سهرايا</h2>
+                <h2 className="text-2xl font-black mb-1">{cafeDisplayName}</h2>
+                {settings?.commercialRegister && <p className="text-[11px]">سجل تجاري: {settings.commercialRegister}</p>}
+                {settings?.taxCardNumber && <p className="text-[11px]">بطاقة ضريبية: {settings.taxCardNumber}</p>}
                 <p className="text-xs">رقم الطلب: {printingOrder.id.slice(-6).toUpperCase()}</p>
                 <p className="text-xs">{format(new Date(), 'PPpp', { locale: ar })}</p>
                 <p className="text-xl font-bold mt-2">طاولة: {printingOrder.tableNumber}</p>
@@ -822,21 +833,29 @@ export function CashierDashboard() {
                   </tbody>
                 </table>
               </div>
+              {(srvFee > 0 || vatFee > 0) && (
+                <div className="text-xs space-y-1 border-t border-dashed border-gray-300 pt-2 mb-2">
+                  <div className="flex justify-between"><span>المجموع الفرعي:</span><span>{sub} ج.م</span></div>
+                  {srvFee > 0 && <div className="flex justify-between"><span>خدمة صالة ({serviceChargePct}%):</span><span>{srvFee} ج.م</span></div>}
+                  {vatFee > 0 && <div className="flex justify-between"><span>ضريبة VAT ({vatPct}%):</span><span>{vatFee} ج.م</span></div>}
+                </div>
+              )}
               <div className="flex justify-between items-center font-black border-t-2 border-black pt-2 border-dashed">
                 <span className="text-lg">الإجمالي:</span>
-                <span className="text-lg">{printingOrder.totalAmount} ج.م</span>
+                <span className="text-lg">{grandTotal} ج.م</span>
               </div>
               <div className="text-center mt-6 text-xs w-full border-t border-dashed border-gray-400 pt-2">
                 <p className="font-bold">شكراً لزيارتكم!</p>
                 <p className="mt-1">الكاشير: {user?.name}</p>
               </div>
             </div>
-          )}
+            );
+          })()}
           
           {printingShift && (
             <div className="flex flex-col text-sm">
               <div className="text-center mb-4 border-b border-dashed border-gray-400 pb-2">
-                <h2 className="text-2xl font-black mb-1">كافيه سهرايا</h2>
+                <h2 className="text-2xl font-black mb-1">{cafeDisplayName}</h2>
                 <h3 className="text-lg font-bold">تقفيل شيفت</h3>
                 <p className="text-xs mt-1">بداية: {format(new Date(printingShift.startTime), 'p', { locale: ar })}</p>
                 <p className="text-xs">نهاية: {format(new Date(printingShift.endTime), 'p', { locale: ar })}</p>

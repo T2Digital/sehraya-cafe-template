@@ -1,3 +1,5 @@
+import { collection as fsCollection, doc as fsDoc, Firestore } from 'firebase/firestore';
+
 export interface UniversalTenantConfig {
   id?: string;
   slug?: string;
@@ -16,6 +18,24 @@ export interface UniversalTenantConfig {
   studioLandingPageUrl?: string;
   planNameAr?: string;
   upgradeUrl?: string;
+}
+
+export function resolveCafeBrandSlug(): string | null {
+  if (typeof window === 'undefined') return null;
+  const b = (window as any).__TENANT_BRAND__ as UniversalTenantConfig | undefined;
+  const slug = String(b?.slug || b?.id || '').trim().toLowerCase();
+  if (!slug || slug === 'sehraya-cafe' || slug === 'sehraya_cafe') return null;
+  return slug;
+}
+
+export function tenantCollection(db: Firestore, path: string, ...pathSegments: string[]) {
+  const slug = resolveCafeBrandSlug();
+  return slug ? fsCollection(db, 'tenants', slug, path, ...pathSegments) : fsCollection(db, path, ...pathSegments);
+}
+
+export function tenantDoc(db: Firestore, path: string, ...pathSegments: string[]) {
+  const slug = resolveCafeBrandSlug();
+  return slug ? fsDoc(db, 'tenants', slug, path, ...pathSegments) : fsDoc(db, path, ...pathSegments);
 }
 
 const DEFAULT_TOKENS = ['كافيه سهرايا', 'كافية سهرايا', 'سهرايا', 'Sehraya Cafe', 'Sehraya'];

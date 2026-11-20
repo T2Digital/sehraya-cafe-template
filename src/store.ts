@@ -120,6 +120,12 @@ export interface Settings {
   walletNumber: string;
   instapayNumber: string;
   instapayLink: string;
+  cafeName?: string;
+  commercialRegister?: string;
+  taxCardNumber?: string;
+  serviceChargePct?: number;
+  vatPct?: number;
+  tablesCount?: number;
 }
 
 interface AppState {
